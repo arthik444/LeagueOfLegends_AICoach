@@ -281,33 +281,6 @@ cd frontend
 npm run build
 ```
 
-## Deployment
-
-### Option 1: AWS Amplify (Frontend)
-1. Connect GitHub repository
-2. Configure build settings
-3. Deploy
-
-### Option 2: AWS Lambda + API Gateway (Backend)
-1. Package FastAPI app
-2. Deploy to Lambda
-3. Configure API Gateway
-
-### Option 3: EC2
-1. Launch EC2 instance
-2. Install dependencies
-3. Run with PM2/systemd
-
-## Hackathon Requirements
-
-✅ **AWS AI Services**: Amazon Bedrock (Claude 3 Sonnet)
-✅ **Riot Games API**: Full match history integration
-✅ **Insights**: Strengths, weaknesses, trends, playstyle analysis
-✅ **Visualizations**: Stats cards, champion grids, performance tables
-✅ **Year-end Recaps**: AI-generated narratives and summaries
-✅ **Shareable Content**: Social media-ready recap pages
-✅ **Beyond op.gg**: AI-powered storytelling and personalized insights
-
 ## Methodology
 
 ### Data Analysis
@@ -337,19 +310,5 @@ MIT License - See LICENSE file
 - **AWS** for Bedrock and AI services
 - **Riot Games** for the League of Legends API
 - Hackathon organizers and community
-
-## Demo Video
-
-[Link to demo video on YouTube]
-
-## Live Demo
-
-[Link to deployed application]
-
-## Contact
-
-[Your contact information]
-
----
 
 Built with ❤️ for Rift Rewind Hackathon 2025
