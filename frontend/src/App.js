@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import LeftSidebar from './components/LeftSidebar';
 import MapArea from './components/MapArea';
 import RightSidebar from './components/RightSidebar';
@@ -24,6 +24,49 @@ function App() {
   const [showFrameEvents, setShowFrameEvents] = useState(false);
 
   const frames = matchData.info.frames;
+
+  const eventFiltersWithPositions = useMemo(() => {
+    const result = {
+      kills: false,
+      objectives: false,
+      wards: false,
+      items: false
+    };
+
+    frames.forEach(frame => {
+      frame.events?.forEach(event => {
+        if (!event.position) return;
+
+        if (event.type === 'CHAMPION_KILL') {
+          result.kills = true;
+        } else if (event.type === 'ELITE_MONSTER_KILL' || event.type === 'BUILDING_KILL') {
+          result.objectives = true;
+        } else if (event.type?.includes('WARD')) {
+          result.wards = true;
+        } else if (event.type?.includes('ITEM')) {
+          result.items = true;
+        }
+      });
+    });
+
+    return result;
+  }, [frames]);
+
+  useEffect(() => {
+    setEventToggles(prev => {
+      let changed = false;
+      const next = { ...prev };
+
+      Object.entries(next).forEach(([key, value]) => {
+        if (!eventFiltersWithPositions[key] && value) {
+          next[key] = false;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [eventFiltersWithPositions]);
   const currentFrame = frames[currentFrameIndex];
   const maxFrames = frames.length;
 
@@ -84,6 +127,7 @@ function App() {
           setPlayerFilter={setPlayerFilter}
           eventToggles={eventToggles}
           setEventToggles={setEventToggles}
+          availableEventFilters={eventFiltersWithPositions}
         />
         
         <MapArea 

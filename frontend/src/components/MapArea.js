@@ -141,26 +141,139 @@ const MapArea = ({
   const filteredPlayers = getFilteredPlayers();
 
   // Get events for current frame
+  const categorizeEvent = (event) => {
+    if (event.type === 'CHAMPION_KILL') return 'kills';
+    if (event.type === 'ELITE_MONSTER_KILL' || event.type === 'BUILDING_KILL') return 'objectives';
+    if (event.type?.includes('WARD')) return 'wards';
+    if (event.type?.includes('ITEM')) return 'items';
+    return null;
+  };
+
+  const getEventVisuals = (event) => {
+    if (event.type === 'CHAMPION_KILL') {
+      return {
+        icon: '⚔',
+        textColor: '#F87171',
+        textShadow: '0 0 6px rgba(0,0,0,0.8)',
+        size: 42,
+        plain: true
+      };
+    }
+
+    if (event.type === 'ELITE_MONSTER_KILL') {
+      if (event.monsterType === 'DRAGON') {
+        return {
+          icon: '🐉',
+          backgroundColor: '#7C2D12',
+          borderColor: '#FB923C',
+          textColor: '#FFF7ED',
+          size: 30
+        };
+      }
+      if (event.monsterType === 'BARON_NASHOR') {
+        return {
+          icon: '👑',
+          backgroundColor: '#312E81',
+          borderColor: '#C7D2FE',
+          textColor: '#E0E7FF',
+          size: 32
+        };
+      }
+      if (event.monsterType === 'RIFTHERALD') {
+        return {
+          icon: '🌀',
+          backgroundColor: '#1F2937',
+          borderColor: '#38BDF8',
+          textColor: '#E0F2FE',
+          size: 30
+        };
+      }
+      return {
+        icon: '⭐',
+        backgroundColor: '#92400E',
+        borderColor: '#FDE68A',
+        textColor: '#FEF3C7',
+        size: 30
+      };
+    }
+
+    if (event.type === 'BUILDING_KILL') {
+      if (event.buildingType === 'TOWER_BUILDING') {
+        return {
+          icon: '🏰',
+          backgroundColor: '#0F172A',
+          borderColor: '#FBBF24',
+          textColor: '#FEF08A',
+          size: 28
+        };
+      }
+      if (event.buildingType === 'INHIBITOR_BUILDING') {
+        return {
+          icon: '🛡',
+          backgroundColor: '#1F2937',
+          borderColor: '#F97316',
+          textColor: '#FFEDD5',
+          size: 28
+        };
+      }
+      return {
+        icon: '🏛',
+        backgroundColor: '#111827',
+        borderColor: '#6B7280',
+        textColor: '#E5E7EB',
+        size: 28
+      };
+    }
+
+    if (event.type?.includes('WARD')) {
+      const isKill = event.type === 'WARD_KILL';
+      return {
+        icon: isKill ? '✂️' : '👁',
+        backgroundColor: isKill ? '#065F46' : '#047857',
+        borderColor: isKill ? '#34D399' : '#6EE7B7',
+        textColor: '#ECFDF5',
+        size: 26
+      };
+    }
+
+    if (event.type?.includes('ITEM')) {
+      const isPurchase = event.type === 'ITEM_PURCHASED';
+      return {
+        icon: isPurchase ? '🛒' : '🎁',
+        backgroundColor: '#1E3A8A',
+        borderColor: '#93C5FD',
+        textColor: '#DBEAFE',
+        size: 26
+      };
+    }
+
+    return {
+      icon: '◉',
+      backgroundColor: '#4B5563',
+      borderColor: '#D1D5DB',
+      textColor: '#F9FAFB',
+      size: 26
+    };
+  };
+
   const getEventsForFrame = () => {
-    if (!eventToggles.kills && !eventToggles.objectives) return [];
-    
     const events = [];
     for (let i = 0; i <= currentFrameIndex; i++) {
       const frame = frames[i];
-      if (frame.events) {
-        frame.events.forEach(event => {
-          if (eventToggles.kills && event.type === 'CHAMPION_KILL' && event.position) {
-            events.push({ ...event, frameIndex: i });
-          }
-          if (eventToggles.objectives && 
-              (event.type === 'ELITE_MONSTER_KILL' || event.type === 'BUILDING_KILL') && 
-              event.position) {
-            events.push({ ...event, frameIndex: i });
-          }
-        });
-      }
+      if (!frame.events) continue;
+
+      frame.events.forEach(event => {
+        if (!event.position) return;
+
+        const category = categorizeEvent(event);
+        if (!category) return;
+
+        if (!eventToggles[category]) return;
+
+        events.push({ ...event, frameIndex: i, category });
+      });
     }
-    return events.slice(-50); // Show last 50 events
+    return events.slice(-50);
   };
 
   const events = getEventsForFrame();
@@ -198,31 +311,46 @@ const MapArea = ({
               mapDimensions.height,
             );
 
-            let icon = '⚔';
-            let size = 16;
-
-            if (event.type === 'ELITE_MONSTER_KILL') {
-              icon = event.monsterType === 'DRAGON' ? '🐉' : '👹';
-              size = 20;
-            } else if (event.type === 'BUILDING_KILL') {
-              icon = '🏰';
-              size = 18;
-            }
+            const { icon, backgroundColor, borderColor, textColor, size, plain, textShadow } = getEventVisuals(event);
             
             return (
               <div
                 key={`event-${idx}`}
-                className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-125 transition-transform"
+                className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform"
                 style={{ 
                   left: `${x}px`, 
                   top: `${y}px`,
-                  fontSize: `${size}px`,
-                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
-                  opacity: 0.7
                 }}
                 title={event.type}
               >
-                {icon}
+                {plain ? (
+                  <span
+                    style={{
+                      color: textColor || '#ffffff',
+                      fontWeight: 900,
+                      fontSize: `${Math.max(18, size)}px`,
+                      textShadow: textShadow || '0 0 4px rgba(0,0,0,0.6)'
+                    }}
+                  >
+                    {icon}
+                  </span>
+                ) : (
+                  <div
+                    className="rounded-full border-[3px] flex items-center justify-center"
+                    style={{
+                      width: `${size}px`,
+                      height: `${size}px`,
+                      backgroundColor,
+                      borderColor,
+                      color: textColor || '#ffffff',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
+                      fontWeight: 800,
+                      fontSize: `${Math.max(12, size * 0.45)}px`
+                    }}
+                  >
+                    {icon}
+                  </div>
+                )}
               </div>
             );
           })}

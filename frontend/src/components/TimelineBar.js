@@ -111,9 +111,9 @@ const TimelineBar = ({
   };
 
   return (
-    <div className="h-20 bg-timeline-bg border-t border-gray-700 flex flex-col">
+    <div className="h-24 bg-timeline-bg border-t border-gray-700 flex flex-col relative z-10">
       {/* Timeline Scrubber */}
-      <div className="flex-1 px-4 py-2">
+      <div className="flex-1 px-4 pt-3 pb-4">
         <div className="relative h-full">
           {/* Time markers */}
           <div className="absolute top-0 left-0 right-0 flex justify-between text-xs text-text-secondary mb-1">

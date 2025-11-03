@@ -1,6 +1,6 @@
 import React from 'react';
 
-const LeftSidebar = ({ playerFilter, setPlayerFilter, eventToggles, setEventToggles }) => {
+const LeftSidebar = ({ playerFilter, setPlayerFilter, eventToggles, setEventToggles, availableEventFilters }) => {
   const filterOptions = [
     { id: 'solo', label: 'Solo', icon: '●' },
     { id: 'team', label: 'My Team', icon: '▲' },
@@ -14,6 +14,15 @@ const LeftSidebar = ({ playerFilter, setPlayerFilter, eventToggles, setEventTogg
     { id: 'wards', label: 'Wards', icon: '👁' },
     { id: 'items', label: 'Items', icon: '🛒' }
   ];
+
+  const enabledEventFilters = availableEventFilters || {
+    kills: true,
+    objectives: true,
+    wards: true,
+    items: true
+  };
+
+  const activeEventOptions = eventOptions.filter(option => enabledEventFilters[option.id]);
 
   const handleToggle = (eventId) => {
     setEventToggles(prev => ({
@@ -78,54 +87,35 @@ const LeftSidebar = ({ playerFilter, setPlayerFilter, eventToggles, setEventTogg
       </div>
 
       {/* Event Overlays Section */}
-      <div className="p-4 border-b border-gray-700">
-        <h3 className="text-white font-semibold text-sm mb-3">Show Events</h3>
-        <div className="space-y-2">
-          {eventOptions.map(option => (
-            <label 
-              key={option.id}
-              className="flex items-center justify-between p-2 rounded cursor-pointer hover:bg-gray-700 hover:bg-opacity-30 transition-all h-9"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-base">{option.icon}</span>
-                <span className="text-sm text-text-secondary">{option.label}</span>
-              </div>
-              <div 
-                onClick={() => handleToggle(option.id)}
-                className={`w-11 h-6 rounded-full transition-all cursor-pointer ${
-                  eventToggles[option.id] ? 'bg-primary-gold' : 'bg-gray-600'
-                }`}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
-                  eventToggles[option.id] ? 'translate-x-5' : 'translate-x-0.5'
-                }`} />
-              </div>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Heatmap Options */}
       <div className="p-4">
-        <h3 className="text-white font-semibold text-sm mb-3">Trails & Heatmaps</h3>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-text-secondary mb-1 block">Movement Trail Duration</label>
-            <select className="w-full bg-bg-dark text-white text-sm p-2 rounded border border-gray-600 focus:border-primary-gold focus:outline-none">
-              <option>30 seconds</option>
-              <option>1 minute</option>
-              <option>All</option>
-            </select>
+        <h3 className="text-white font-semibold text-sm mb-3">Show Events</h3>
+        {activeEventOptions.length === 0 ? (
+          <p className="text-xs text-text-secondary italic">No positional event data available yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {activeEventOptions.map(option => (
+              <label 
+                key={option.id}
+                className="flex items-center justify-between p-2 rounded cursor-pointer hover:bg-gray-700 hover:bg-opacity-30 transition-all h-9"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-base">{option.icon}</span>
+                  <span className="text-sm text-text-secondary">{option.label}</span>
+                </div>
+                <div 
+                  onClick={() => handleToggle(option.id)}
+                  className={`w-11 h-6 rounded-full transition-all cursor-pointer ${
+                    eventToggles[option.id] ? 'bg-primary-gold' : 'bg-gray-600'
+                  }`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
+                    eventToggles[option.id] ? 'translate-x-5' : 'translate-x-0.5'
+                  }`} />
+                </div>
+              </label>
+            ))}
           </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" className="w-4 h-4 accent-primary-gold" />
-            <span className="text-sm text-text-secondary">Death locations</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" className="w-4 h-4 accent-primary-gold" />
-            <span className="text-sm text-text-secondary">Combat zones</span>
-          </label>
-        </div>
+        )}
       </div>
     </div>
   );
