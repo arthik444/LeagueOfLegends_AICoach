@@ -5,10 +5,19 @@ import RightSidebar from './components/RightSidebar';
 import TimelineBar from './components/TimelineBar';
 import ParticipantDetailsModal from './components/ParticipantDetailsModal';
 import FrameEventsModal from './components/FrameEventsModal';
+import YearRecapPage from './components/YearRecapPage';
 import matchData from './data/match-data.json';
 import matchSummary from './data/match-summary.json';
 
+// Configuration
+const API_BASE_URL = 'http://localhost:8000';
+const SNEAKY_PUUID = 'BQD2G_OKDrt_YjF9A5qJvfzClUx0Fe2fPzQm8cqLQWnATfQmzBta-JAW3ZOGABb07RmYrpJ_AXr-cg';
+
 function App() {
+  const [currentPage, setCurrentPage] = useState('match');
+  const [yearRecapData, setYearRecapData] = useState(null);
+  const [yearRecapLoading, setYearRecapLoading] = useState(false);
+  const [yearRecapError, setYearRecapError] = useState(null);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
@@ -130,8 +139,83 @@ function App() {
     }
   };
 
+  // Fetch year recap data when switching to that page
+  const fetchYearRecapData = async () => {
+    if (yearRecapData) return; // Already fetched
+
+    setYearRecapLoading(true);
+    setYearRecapError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/year-recap/heatmap`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          puuid: SNEAKY_PUUID,
+          player_name: 'Sneaky#NA1'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setYearRecapData(data);
+    } catch (error) {
+      console.error('Error fetching year recap data:', error);
+      setYearRecapError(error.message);
+    } finally {
+      setYearRecapLoading(false);
+    }
+  };
+
+  // Fetch year recap data when navigating to that page
+  useEffect(() => {
+    if (currentPage === 'year-recap') {
+      fetchYearRecapData();
+    }
+  }, [currentPage]);
+
   return (
     <div className="h-screen w-screen bg-bg-dark flex flex-col overflow-hidden">
+      {/* Navigation Bar */}
+      <div className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex items-center gap-4">
+        <div className="text-xl font-bold text-primary-gold">RIFT Analyzer</div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCurrentPage('match')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              currentPage === 'match'
+                ? 'bg-primary-gold text-bg-dark'
+                : 'bg-gray-800 text-white hover:bg-gray-700'
+            }`}
+          >
+            Match Analysis
+          </button>
+          <button
+            onClick={() => setCurrentPage('year-recap')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              currentPage === 'year-recap'
+                ? 'bg-primary-gold text-bg-dark'
+                : 'bg-gray-800 text-white hover:bg-gray-700'
+            }`}
+          >
+            Year Recap
+          </button>
+        </div>
+      </div>
+
+      {currentPage === 'year-recap' ? (
+        <YearRecapPage
+          yearRecapData={yearRecapData}
+          loading={yearRecapLoading}
+          error={yearRecapError}
+        />
+      ) : (
+        <>
       <div className="flex-1 flex overflow-hidden">
         <LeftSidebar 
           playerFilter={playerFilter}
@@ -198,6 +282,8 @@ function App() {
             console.log('Event clicked:', event);
           }}
         />
+      )}
+        </>
       )}
     </div>
   );

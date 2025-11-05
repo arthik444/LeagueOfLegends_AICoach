@@ -10,6 +10,7 @@ from services.riot_api import RiotAPIClient
 from services.bedrock_ai import BedrockAIService
 from services.match_analyzer import MatchAnalyzer
 from services.coaching_agent import CoachingAgent
+from services.timeline_aggregator import TimelineAggregator
 from services.demo_data import (
     DEMO_PLAYER,
     DEMO_YEAR_RECAP,
@@ -42,6 +43,7 @@ riot_client = RiotAPIClient(api_key=os.getenv("RIOT_API_KEY"))
 bedrock_service = BedrockAIService()
 match_analyzer = MatchAnalyzer(riot_client, bedrock_service)
 coaching_agent = CoachingAgent(riot_client)
+timeline_aggregator = TimelineAggregator()
 
 
 class PlayerRequest(BaseModel):
@@ -80,6 +82,11 @@ class RankedRequest(BaseModel):
 class ChallengesRequest(BaseModel):
     puuid: str
     platform: str = "na1"
+
+
+class YearRecapHeatmapRequest(BaseModel):
+    puuid: str
+    player_name: str = "Player"
 
 
 @app.get("/")
@@ -244,6 +251,34 @@ async def get_challenges_config(platform: str = "na1"):
         return {"challenges": config, "count": len(config)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching challenge config: {str(e)}")
+
+
+# ============= YEAR RECAP HEATMAP ENDPOINTS =============
+
+@app.post("/api/year-recap/heatmap")
+async def get_year_recap_heatmap(request: YearRecapHeatmapRequest):
+    """
+    Generate year recap heatmap data by aggregating all timeline events.
+
+    This endpoint dynamically reads timeline data from Sneaky_data/matches/timelines
+    and aggregates location-based events (deaths, kills, assists, objectives) for
+    the specified player.
+
+    Returns heatmap data suitable for visualization on the map.
+    """
+    try:
+        logger.info(f"Generating year recap heatmap for PUUID: {request.puuid[:8]}...")
+        heatmap_data = timeline_aggregator.generate_heatmap_data(
+            target_puuid=request.puuid,
+            player_name=request.player_name
+        )
+        logger.info(f"Heatmap generated: {heatmap_data['stats']['total_matches']} matches, "
+                   f"{heatmap_data['stats']['deaths_count']} deaths, "
+                   f"{heatmap_data['stats']['kills_count']} kills")
+        return heatmap_data
+    except Exception as e:
+        logger.error(f"Error generating heatmap: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating heatmap: {str(e)}")
 
 
 # ============= AI COACHING AGENT ENDPOINTS =============

@@ -58,3 +58,15 @@ htmlcov/
 # AWS
 .aws/
 /markdowns
+/backend/Dump
+/backend/sample_images
+/backend/Sneaky_10_games
+/backend/Tyler1
+/backend/Sneaky_10_games.zip
+/backend/Sneaky_data
+.claude
+/backend/fetch_match_timelines.py
+/backend/fetch_sneaky_bulk_matches.py
+/backend/fetch_sneaky_complete_data.py
+/backend/fetch_sneaky_organized_data.py
+/backend/generate_year_recap_data.py

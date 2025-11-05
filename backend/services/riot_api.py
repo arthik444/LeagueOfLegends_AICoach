@@ -82,6 +82,16 @@ class RiotAPIClient:
             response.raise_for_status()
             return response.json()
 
+    async def get_match_timeline(self, match_id: str, region: str = "americas") -> Dict:
+        """Get timeline data for a specific match (minute-by-minute events)"""
+        base_url = self.BASE_URLS.get(region, self.BASE_URLS["americas"])
+        url = f"{base_url}/lol/match/v5/matches/{match_id}/timeline"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=self.headers)
+            response.raise_for_status()
+            return response.json()
+
     async def get_multiple_matches(
         self,
         match_ids: List[str],
@@ -174,6 +184,20 @@ class RiotAPIClient:
         """Get ranked league entries for a summoner (Solo/Duo, Flex, etc.)"""
         platform_url = self.PLATFORM_URLS.get(platform, self.PLATFORM_URLS["na1"])
         url = f"{platform_url}/lol/league/v4/entries/by-summoner/{summoner_id}"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=self.headers)
+            response.raise_for_status()
+            return response.json()
+
+    async def get_league_entries_by_puuid(
+        self,
+        puuid: str,
+        platform: str = "na1"
+    ) -> List[Dict]:
+        """Get ranked league entries by PUUID"""
+        platform_url = self.PLATFORM_URLS.get(platform, self.PLATFORM_URLS["na1"])
+        url = f"{platform_url}/lol/league/v4/entries/by-puuid/{puuid}"
 
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=self.headers)
