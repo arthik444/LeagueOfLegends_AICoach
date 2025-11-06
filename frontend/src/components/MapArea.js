@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { MONSTER_ICONS } from '../constants/monsterIcons';
 
 const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
 
@@ -160,40 +161,59 @@ const MapArea = ({
     }
 
     if (event.type === 'ELITE_MONSTER_KILL') {
-      if (event.monsterType === 'DRAGON') {
-        return {
-          icon: '🐉',
-          backgroundColor: '#7C2D12',
-          borderColor: '#FB923C',
-          textColor: '#FFF7ED',
-          size: 30
-        };
-      }
-      if (event.monsterType === 'BARON_NASHOR') {
-        return {
-          icon: '👑',
-          backgroundColor: '#312E81',
-          borderColor: '#C7D2FE',
-          textColor: '#E0E7FF',
-          size: 32
-        };
-      }
-      if (event.monsterType === 'RIFTHERALD') {
-        return {
-          icon: '🌀',
-          backgroundColor: '#1F2937',
-          borderColor: '#38BDF8',
-          textColor: '#E0F2FE',
-          size: 30
-        };
-      }
-      return {
-        icon: '⭐',
+      const monsterKey = event.monsterSubType || event.monsterType;
+      const iconSrc = monsterKey ? MONSTER_ICONS[monsterKey] : undefined;
+
+      const baseVisual = {
         backgroundColor: '#92400E',
         borderColor: '#FDE68A',
         textColor: '#FEF3C7',
-        size: 30
+        size: 30,
+        iconAlt: monsterKey ? monsterKey.replace(/_/g, ' ') : 'Elite Monster',
       };
+
+      if (event.monsterType === 'DRAGON') {
+        Object.assign(baseVisual, {
+          backgroundColor: '#7C2D12',
+          borderColor: '#FB923C',
+          textColor: '#FFF7ED',
+          size: 34,
+        });
+      } else if (event.monsterType === 'BARON_NASHOR') {
+        Object.assign(baseVisual, {
+          backgroundColor: '#312E81',
+          borderColor: '#C7D2FE',
+          textColor: '#E0E7FF',
+          size: 36,
+        });
+      } else if (event.monsterType === 'RIFTHERALD') {
+        Object.assign(baseVisual, {
+          backgroundColor: '#1F2937',
+          borderColor: '#38BDF8',
+          textColor: '#E0F2FE',
+          size: 34,
+        });
+      } else if (event.monsterType === 'HORDE') {
+        Object.assign(baseVisual, {
+          backgroundColor: '#4C1D95',
+          borderColor: '#DDD6FE',
+          textColor: '#F5F3FF',
+          size: 40,
+        });
+      }
+
+      const fallbackIcon =
+        event.monsterType === 'DRAGON'
+          ? '🐉'
+          : event.monsterType === 'BARON_NASHOR'
+            ? '👑'
+            : event.monsterType === 'RIFTHERALD'
+              ? '🌀'
+              : '⭐';
+
+      return iconSrc
+        ? { ...baseVisual, iconSrc }
+        : { ...baseVisual, icon: fallbackIcon };
     }
 
     if (event.type === 'BUILDING_KILL') {
@@ -388,7 +408,7 @@ const MapArea = ({
               mapDimensions.height,
             );
 
-            const { icon, backgroundColor, borderColor, textColor, size, plain, textShadow } = getEventVisuals(event);
+            const { icon, iconSrc, iconAlt, backgroundColor, borderColor, textColor, size, plain, textShadow } = getEventVisuals(event);
             const isSelected = selectedEvent?.frameIndex === event.frameIndex && selectedEvent?.timestamp === event.timestamp && selectedEvent?.type === event.type;
             
             return (
@@ -424,19 +444,33 @@ const MapArea = ({
                   </span>
                 ) : (
                   <div
-                    className="rounded-full border-[3px] flex items-center justify-center"
+                    className="rounded-full border-[3px] flex items-center justify-center overflow-hidden"
                     style={{
                       width: `${size}px`,
                       height: `${size}px`,
                       backgroundColor,
                       borderColor,
-                      color: textColor || '#ffffff',
                       boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
-                      fontWeight: 800,
-                      fontSize: `${Math.max(12, size * 0.45)}px`
+                      ...(iconSrc
+                        ? {}
+                        : {
+                            color: textColor || '#ffffff',
+                            fontWeight: 800,
+                            fontSize: `${Math.max(12, size * 0.45)}px`,
+                            textShadow: textShadow || '0 0 2px rgba(0,0,0,0.6)'
+                          })
                     }}
                   >
-                    {icon}
+                    {iconSrc ? (
+                      <img
+                        src={iconSrc}
+                        alt={iconAlt || 'Elite monster'}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      icon
+                    )}
                   </div>
                 )}
               </div>
@@ -545,16 +579,31 @@ const MapArea = ({
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
+                  className={`w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden border-2 ${selectedEvent.type === 'ELITE_MONSTER_KILL' ? 'bg-black/50 border-primary-gold/60' : 'border-gray-700 bg-gray-800'}`}
                   style={{
-                    backgroundColor: selectedEventVisuals?.backgroundColor || '#1f2937',
-                    color: selectedEventVisuals?.textColor || '#F9FAFB',
-                    border: selectedEventVisuals?.borderColor
-                      ? `3px solid ${selectedEventVisuals.borderColor}`
-                      : '3px solid rgba(255,255,255,0.1)'
+                    borderColor: selectedEventVisuals?.borderColor || undefined,
+                    backgroundColor: selectedEvent.type === 'ELITE_MONSTER_KILL'
+                      ? '#0f172a'
+                      : selectedEventVisuals?.backgroundColor || '#1f2937'
                   }}
                 >
-                  {selectedEventVisuals?.icon || '◉'}
+                  {selectedEvent.type === 'ELITE_MONSTER_KILL' && selectedEventVisuals?.iconSrc ? (
+                    <img
+                      src={selectedEventVisuals.iconSrc}
+                      alt={selectedEventVisuals.iconAlt || 'Elite monster'}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span
+                      className="text-2xl"
+                      style={{
+                        color: selectedEventVisuals?.textColor || '#F9FAFB'
+                      }}
+                    >
+                      {selectedEventVisuals?.icon || '◉'}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <div className="text-white font-semibold text-lg leading-tight">
@@ -596,6 +645,39 @@ const MapArea = ({
               </div>
             )}
 
+            {selectedEvent.type === 'ELITE_MONSTER_KILL' && (
+              <div className="mt-4 space-y-3">
+                {selectedEvent.killerId !== undefined && (
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-text-secondary mb-2">Secured By</p>
+                    <ParticipantBadge
+                      participantId={selectedEvent.killerId}
+                      label="Killer"
+                      accent="text-primary-gold"
+                      participantSummary={participantSummary}
+                    />
+                  </div>
+                )}
+                {selectedEvent.assistingParticipantIds?.length > 0 && (
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-text-secondary mb-2">Assist Contributors</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedEvent.assistingParticipantIds.map(id => (
+                        <ParticipantBadge
+                          key={`elite-assist-${id}`}
+                          participantId={id}
+                          label="Assist"
+                          accent="text-primary-gold"
+                          compact
+                          participantSummary={participantSummary}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2 mt-4 text-xs text-text-secondary">
               {selectedEvent.position && (
                 <div className="bg-gray-800 rounded-md px-2 py-1">
@@ -610,19 +692,21 @@ const MapArea = ({
               {selectedEvent.killerId !== undefined && (
                 <div className="bg-gray-800 rounded-md px-2 py-1">
                   <div className="uppercase tracking-wide text-[10px] text-text-secondary">Killer</div>
-                  <div className="text-white font-medium">Player {selectedEvent.killerId}</div>
+                  <div className="text-white font-medium">{getParticipantName(selectedEvent.killerId)}</div>
                 </div>
               )}
               {selectedEvent.victimId !== undefined && (
                 <div className="bg-gray-800 rounded-md px-2 py-1">
                   <div className="uppercase tracking-wide text-[10px] text-text-secondary">Victim</div>
-                  <div className="text-white font-medium">Player {selectedEvent.victimId}</div>
+                  <div className="text-white font-medium">{getParticipantName(selectedEvent.victimId)}</div>
                 </div>
               )}
               {selectedEvent.assistingParticipantIds?.length > 0 && (
                 <div className="bg-gray-800 rounded-md px-2 py-1 col-span-2">
                   <div className="uppercase tracking-wide text-[10px] text-text-secondary">Assists</div>
-                  <div className="text-white font-medium">{selectedEvent.assistingParticipantIds.join(', ')}</div>
+                  <div className="text-white font-medium">
+                    {selectedEvent.assistingParticipantIds.map(id => getParticipantName(id)).join(', ')}
+                  </div>
                 </div>
               )}
               {selectedEvent.bounty !== undefined && (
