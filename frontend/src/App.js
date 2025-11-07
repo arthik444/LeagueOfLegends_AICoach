@@ -18,6 +18,8 @@ const SNEAKY_PUUID = 'BQD2G_OKDrt_YjF9A5qJvfzClUx0Fe2fPzQm8cqLQWnATfQmzBta-JAW3Z
 
 function App() {
   const [currentPage, setCurrentPage] = useState('match');
+  
+  // Handle hash routing for shared links
   const [showPlayerSearch, setShowPlayerSearch] = useState(false);
   const [currentPlayerData, setCurrentPlayerData] = useState(null);
   const [currentPuuid, setCurrentPuuid] = useState(SNEAKY_PUUID);
@@ -49,6 +51,25 @@ function App() {
   const [showFrameEvents, setShowFrameEvents] = useState(false);
 
   const frames = matchData?.info?.frames ?? [];
+  
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/a/') || hash.startsWith('#/analytics/')) {
+        setCurrentPage('performance-analytics');
+      }
+    };
+    
+    // Check on mount
+    handleHashChange();
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
 
   const participantSummaryById = useMemo(() => {
     const participants = matchSummary?.info?.participants || [];
