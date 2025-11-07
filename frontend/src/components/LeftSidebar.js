@@ -219,7 +219,7 @@ const LeftSidebar = ({ playerFilter, setPlayerFilter, eventToggles, setEventTogg
   };
 
   return (
-    <div className="w-[280px] bg-surface h-full flex flex-col overflow-hidden">
+    <div className="w-[280px] bg-surface h-full flex flex-col overflow-y-auto overflow-x-hidden">
       {/* Current Match Summary */}
       <div className="p-4 border-b border-gray-700">
         <h2 className="text-white font-bold text-base mb-3">Current Match</h2>
