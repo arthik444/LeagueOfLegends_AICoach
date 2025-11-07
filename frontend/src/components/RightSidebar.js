@@ -1,8 +1,9 @@
 import React from 'react';
+import { getChampionImageUrl } from '../utils/championImages';
 
 const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
 
-const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer, onClose, participantSummary = {} }) => {
+const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer, onClose, participantSummary = {}, mainParticipantId = 1 }) => {
   const [isChatOpen, setIsChatOpen] = React.useState(false);
   const [chatInput, setChatInput] = React.useState('');
   const [chatMessages, setChatMessages] = React.useState([
@@ -88,7 +89,7 @@ const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer
     const manaPercent = stats.powerMax > 0 ? (stats.power / stats.powerMax) * 100 : 100;
     const summary = participantSummary[participantId] || {};
     const championName = summary.championName;
-    const championImageUrl = championName ? `${CHAMPION_IMAGE_BASE}/${championName}.png` : null;
+    const championImageUrl = championName ? getChampionImageUrl(championName) : null;
     const summonerName = summary.summonerName || `Player ${participantId}`;
     const kda = `${summary.kills ?? player.kills ?? 0}/${summary.deaths ?? player.deaths ?? 0}/${summary.assists ?? player.assists ?? 0}`;
     const teamName = participantId <= 5 ? 'Blue Team' : 'Red Team';
@@ -310,7 +311,7 @@ const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer
 
         {/* Default: Show main player if nothing selected */}
         {!selectedPlayer && pinnedPlayers.length === 0 && (
-          <PlayerStatsCard participantId={1} isPinned={false} />
+          <PlayerStatsCard participantId={mainParticipantId} isPinned={false} />
         )}
       </div>
 

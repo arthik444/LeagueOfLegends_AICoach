@@ -1,6 +1,4 @@
 import React from 'react';
-import matchSummary from '../data/match-summary.json';
-
 const generateSvgId = (prefix) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 
 const createSidebarBadge = ({ fillStops, strokeColor, innerRingColor, glyph, className = 'w-8 h-8' }) => {
@@ -165,13 +163,16 @@ const renderEventIcon = (type, active) => {
   });
 };
 
-const LeftSidebar = ({ playerFilter, setPlayerFilter, eventToggles, setEventToggles, availableEventFilters }) => {
+const LeftSidebar = ({ matchSummary, playerFilter, setPlayerFilter, eventToggles, setEventToggles, availableEventFilters, currentPuuid }) => {
   const matchInfo = matchSummary?.info || {};
-  const blueTeam = matchInfo.teams?.find(team => team.teamId === 100);
-  const redTeam = matchInfo.teams?.find(team => team.teamId === 200);
-  const blueWin = blueTeam?.win === true;
-  const redWin = redTeam?.win === true;
-  const matchResult = blueWin ? 'Victory' : redWin ? 'Defeat' : 'Unknown Result';
+  
+  // Find the main player's participant data to determine win/loss
+  const mainPlayerParticipant = matchInfo.participants?.find(
+    p => p.puuid === currentPuuid
+  );
+  const matchResult = mainPlayerParticipant?.win === true ? 'Victory' : 
+                      mainPlayerParticipant?.win === false ? 'Defeat' : 
+                      'Unknown Result';
   const matchEndDate = matchInfo.gameEndTimestamp ? new Date(matchInfo.gameEndTimestamp) : null;
   const formattedEndDate = matchEndDate
     ? matchEndDate.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
