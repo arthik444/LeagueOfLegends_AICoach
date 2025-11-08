@@ -390,6 +390,14 @@ function App() {
           onClose={() => setSelectedPlayer(null)}
           participantSummary={participantSummaryById}
           mainParticipantId={mainParticipantId}
+          matchData={matchData}
+          matchSummary={matchSummary}
+          currentFrameIndex={currentFrameIndex}
+          onNavigateToFrame={handleTimelineChange}
+          eventToggles={eventToggles}
+          onToggleEvent={(eventType, enabled) => {
+            setEventToggles(prev => ({ ...prev, [eventType]: enabled }));
+          }}
         />
       </div>
       
