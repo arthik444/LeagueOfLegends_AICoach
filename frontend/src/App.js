@@ -18,7 +18,11 @@ const API_BASE_URL = 'http://localhost:8000';
 const SNEAKY_PUUID = 'BQD2G_OKDrt_YjF9A5qJvfzClUx0Fe2fPzQm8cqLQWnATfQmzBta-JAW3ZOGABb07RmYrpJ_AXr-cg';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('performance-analytics');
+  // Restore last visited page from localStorage, default to performance-analytics
+  const [currentPage, setCurrentPage] = useState(() => {
+    const savedPage = localStorage.getItem('lastVisitedPage');
+    return savedPage || 'performance-analytics';
+  });
   
   // Handle hash routing for shared links
   const [showPlayerSearch, setShowPlayerSearch] = useState(false);
@@ -66,6 +70,11 @@ function App() {
   const [pendingTimelineRequests, setPendingTimelineRequests] = useState({});
 
   const frames = matchData?.info?.frames ?? [];
+  
+  // Save current page to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('lastVisitedPage', currentPage);
+  }, [currentPage]);
   
   useEffect(() => {
     const handleHashChange = () => {
@@ -231,11 +240,27 @@ function App() {
       setMatchError(null);
       setCurrentMatchId(matchInfo.matchId);
 
-      // Set match summary immediately (from DynamoDB data)
-      setMatchSummary(matchInfo.fullData || EMPTY_MATCH_SUMMARY);
+      // Fetch full match data if not already included
+      let fullMatchData = matchInfo.fullData;
+      if (!fullMatchData) {
+        console.log('Fetching full match data for:', matchInfo.matchId);
+        const matchResponse = await fetch(
+          `${API_BASE_URL}/api/player/match/${currentPuuid}/${matchInfo.matchId}`
+        );
+        
+        if (matchResponse.ok) {
+          const matchData = await matchResponse.json();
+          fullMatchData = matchData.data;
+        } else {
+          throw new Error('Failed to fetch full match data');
+        }
+      }
+
+      // Set match summary immediately
+      setMatchSummary(fullMatchData || EMPTY_MATCH_SUMMARY);
 
       // Find the participant ID for the current player
-      const participantIdForPlayer = matchInfo.fullData?.info?.participants?.find(
+      const participantIdForPlayer = fullMatchData?.info?.participants?.find(
         participant => participant.puuid === currentPuuid
       )?.participantId;
       if (participantIdForPlayer) {
@@ -386,14 +411,21 @@ function App() {
     }
   };
 
-  // Fetch all analytics data upfront when app loads or player changes
+  // DON'T fetch analytics upfront - only when user navigates to those pages
+  // This makes the app load instantly for match analysis (the primary use case)
   useEffect(() => {
-    if (currentPuuid) {
-      // Fetch both Year Recap and Performance Analytics data in parallel
+    if (currentPuuid && currentPage === 'year-recap' && !yearRecapData) {
+      // Only fetch if we don't already have the data
       fetchYearRecapData();
+    }
+  }, [currentPuuid, currentPage, yearRecapData]);
+
+  useEffect(() => {
+    if (currentPuuid && currentPage === 'performance-analytics' && !performanceAnalyticsData) {
+      // Only fetch if we don't already have the data
       fetchPerformanceAnalyticsData();
     }
-  }, [currentPuuid]);
+  }, [currentPuuid, currentPage, performanceAnalyticsData]);
 
   return (
     <DataCacheProvider>

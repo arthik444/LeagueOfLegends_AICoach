@@ -34,8 +34,38 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId, onDropdownChange,
       setLoading(true);
       setError('');
 
+      // Check cache first
+      const cacheKey = `matches_${puuid}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+      
+      // Cache valid for 5 minutes
+      const CACHE_DURATION = 5 * 60 * 1000;
+      const now = Date.now();
+      
+      if (cachedData && cacheTimestamp) {
+        const age = now - parseInt(cacheTimestamp);
+        if (age < CACHE_DURATION) {
+          console.log('Using cached matches (age:', Math.round(age / 1000), 'seconds)');
+          const cached = JSON.parse(cachedData);
+          setMatches(cached);
+          
+          // Auto-select first match if none selected
+          if (cached.length > 0 && !currentMatchId) {
+            console.log('Auto-selecting first match:', cached[0].matchId);
+            onMatchSelect(cached[0]);
+          }
+          
+          setLoading(false);
+          return;
+        } else {
+          console.log('Cache expired (age:', Math.round(age / 1000), 'seconds), fetching fresh data');
+        }
+      }
+
       console.log('Fetching matches for PUUID:', puuid);
-      const url = `http://localhost:8000/api/player/matches/${puuid}`;
+      // Fetch matches WITHOUT full data for fast loading
+      const url = `http://localhost:8000/api/player/matches/${puuid}?include_full_data=false`;
       console.log('Fetching from:', url);
 
       const response = await fetch(url);
@@ -51,6 +81,11 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId, onDropdownChange,
 
       if (data.success) {
         setMatches(data.matches);
+        
+        // Cache the matches
+        localStorage.setItem(cacheKey, JSON.stringify(data.matches));
+        localStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+        console.log('Matches cached for 5 minutes');
 
         // Auto-select first match if none selected
         if (data.matches.length > 0 && !currentMatchId) {
@@ -85,6 +120,16 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId, onDropdownChange,
     if (onDropdownChange) onDropdownChange(false);
   };
 
+  const handleRefresh = (e) => {
+    e.stopPropagation();
+    // Clear cache and refetch
+    const cacheKey = `matches_${puuid}`;
+    localStorage.removeItem(cacheKey);
+    localStorage.removeItem(`${cacheKey}_timestamp`);
+    console.log('Cache cleared, refreshing matches...');
+    fetchMatches();
+  };
+
   if (loading) {
     return <div className="match-selector loading">Loading matches...</div>;
   }
@@ -101,26 +146,44 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId, onDropdownChange,
 
   return (
     <div className="match-selector">
-      <button
-        className="match-selector-button"
-        onClick={() => {
-          const newState = !isOpen;
-          setIsOpen(newState);
-          if (onDropdownChange) onDropdownChange(newState);
-        }}
-      >
-        <div className="current-match-display">
-          <span className="champion-name">{currentMatch?.championName}</span>
-          <span className={`result ${currentMatch?.win ? 'win' : 'loss'}`}>
-            {currentMatch?.win ? 'Victory' : 'Defeat'}
-          </span>
-          <span className="kda">
-            {currentMatch?.kills}/{currentMatch?.deaths}/{currentMatch?.assists}
-          </span>
-          <span className="match-id">{currentMatch?.matchId}</span>
-        </div>
-        <span className={`dropdown-arrow ${isOpen ? 'open' : ''}`}>▼</span>
-      </button>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <button
+          className="match-selector-button"
+          onClick={() => {
+            const newState = !isOpen;
+            setIsOpen(newState);
+            if (onDropdownChange) onDropdownChange(newState);
+          }}
+          style={{ flex: 1 }}
+        >
+          <div className="current-match-display">
+            <span className="champion-name">{currentMatch?.championName}</span>
+            <span className={`result ${currentMatch?.win ? 'win' : 'loss'}`}>
+              {currentMatch?.win ? 'Victory' : 'Defeat'}
+            </span>
+            <span className="kda">
+              {currentMatch?.kills}/{currentMatch?.deaths}/{currentMatch?.assists}
+            </span>
+            <span className="match-id">{currentMatch?.matchId}</span>
+          </div>
+          <span className={`dropdown-arrow ${isOpen ? 'open' : ''}`}>▼</span>
+        </button>
+        <button
+          onClick={handleRefresh}
+          title="Refresh matches"
+          style={{
+            padding: '8px 12px',
+            background: '#1a1a1a',
+            border: '1px solid #333',
+            borderRadius: '4px',
+            color: '#fff',
+            cursor: 'pointer',
+            fontSize: '16px'
+          }}
+        >
+          🔄
+        </button>
+      </div>
 
       {isOpen && (
         <>
