@@ -262,12 +262,13 @@ async def search_player(game_name: str, tag_line: str):
 
 
 @router.get("/matches/{puuid}")
-async def get_player_matches(puuid: str):
+async def get_player_matches(puuid: str, include_full_data: bool = False):
     """
     Get list of all matches for a player from DynamoDB
 
     Args:
         puuid: Player's PUUID
+        include_full_data: Whether to include full match data (default: False for fast loading)
 
     Returns:
         List of matches with summary info for selection
@@ -321,9 +322,13 @@ async def get_player_matches(puuid: str):
                         'deaths': player_data.get('deaths'),
                         'assists': player_data.get('assists'),
                         'win': player_data.get('win'),
-                        'role': player_data.get('teamPosition'),
-                        'fullData': match_data  # Include full match data
+                        'role': player_data.get('teamPosition')
                     }
+                    
+                    # Only include full data if explicitly requested
+                    if include_full_data:
+                        match_summary['fullData'] = match_data
+                    
                     matches.append(match_summary)
 
             # Check if there are more results to fetch
@@ -341,5 +346,45 @@ async def get_player_matches(puuid: str):
             'matches': matches
         }
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/match/{puuid}/{match_id}")
+async def get_single_match(puuid: str, match_id: str):
+    """
+    Get full data for a specific match
+    
+    Args:
+        puuid: Player's PUUID
+        match_id: Match ID
+        
+    Returns:
+        Full match data
+    """
+    try:
+        import boto3
+        from boto3.dynamodb.conditions import Key
+        
+        dynamodb = boto3.resource('dynamodb', region_name=os.getenv('AWS_REGION', 'us-east-1'))
+        table = dynamodb.Table('lol-player-data')
+        
+        response = table.query(
+            KeyConditionExpression=Key('puuid').eq(puuid) & Key('dataType').eq(f'match#{match_id}')
+        )
+        
+        if not response['Items']:
+            raise HTTPException(status_code=404, detail="Match not found")
+        
+        match_data = response['Items'][0].get('data', {})
+        
+        return {
+            'success': True,
+            'matchId': match_id,
+            'data': match_data
+        }
+        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

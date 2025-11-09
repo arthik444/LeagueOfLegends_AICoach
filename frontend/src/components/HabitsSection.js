@@ -110,7 +110,7 @@ const HabitsSection = ({ puuid, rank = "GOLD", timeRange = null }) => {
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
-          <span className="text-2xl">🎯</span>
+          <span className="text-2xl font-semibold tracking-widest">GH</span>
           <div>
             <h3 className="text-lg font-semibold text-white">Gameplay Habits</h3>
             <p className="text-sm text-text-secondary">
@@ -134,7 +134,7 @@ const HabitsSection = ({ puuid, rank = "GOLD", timeRange = null }) => {
           {goodHabits.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
-                <span>✨</span>
+                <span className="text-xs font-semibold tracking-widest">STR</span>
                 Your Strengths
               </h4>
               <div className="space-y-2">
@@ -144,7 +144,9 @@ const HabitsSection = ({ puuid, rank = "GOLD", timeRange = null }) => {
                     className="bg-gray-900/50 rounded-lg p-3 border border-green-900/30"
                   >
                     <div className="flex items-start gap-2">
-                      <span className="text-lg">{habit.icon}</span>
+                      <div className="w-8 h-8 rounded-full border border-green-500/40 bg-green-500/10 flex items-center justify-center text-xs font-semibold uppercase text-green-300">
+                        {String(index + 1).padStart(2, '0')}
+                      </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-white">{habit.habit}</span>
@@ -166,7 +168,7 @@ const HabitsSection = ({ puuid, rank = "GOLD", timeRange = null }) => {
           {badHabits.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold text-amber-400 mb-2 flex items-center gap-2">
-                <span>⚠️</span>
+                <span className="text-xs font-semibold tracking-widest">ATTN</span>
                 Areas to Improve
               </h4>
               <div className="space-y-2">
@@ -176,7 +178,9 @@ const HabitsSection = ({ puuid, rank = "GOLD", timeRange = null }) => {
                     className="bg-gray-900/50 rounded-lg p-3 border border-amber-900/30"
                   >
                     <div className="flex items-start gap-2">
-                      <span className="text-lg">{habit.icon}</span>
+                      <div className="w-8 h-8 rounded-full border border-amber-400/40 bg-amber-400/10 flex items-center justify-center text-xs font-semibold uppercase text-amber-300">
+                        {String(index + 1).padStart(2, '0')}
+                      </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-white">{habit.habit}</span>
@@ -187,7 +191,7 @@ const HabitsSection = ({ puuid, rank = "GOLD", timeRange = null }) => {
                         <p className="text-xs text-text-secondary mt-1">{habit.description}</p>
                         <div className="mt-2 bg-gray-800/50 rounded p-2 border border-gray-700">
                           <p className="text-xs text-blue-300">
-                            <span className="font-semibold">💡 Tip: </span>
+                            <span className="font-semibold uppercase">Tip:</span>
                             {habit.recommendation}
                           </p>
                         </div>

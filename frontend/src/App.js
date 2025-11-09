@@ -18,7 +18,11 @@ const API_BASE_URL = 'http://localhost:8000';
 const SNEAKY_PUUID = 'BQD2G_OKDrt_YjF9A5qJvfzClUx0Fe2fPzQm8cqLQWnATfQmzBta-JAW3ZOGABb07RmYrpJ_AXr-cg';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('performance-analytics');
+  // Restore last visited page from localStorage, default to performance-analytics
+  const [currentPage, setCurrentPage] = useState(() => {
+    const savedPage = localStorage.getItem('lastVisitedPage');
+    return savedPage || 'performance-analytics';
+  });
   
   // Handle hash routing for shared links
   const [showPlayerSearch, setShowPlayerSearch] = useState(false);
@@ -69,6 +73,11 @@ function App() {
   const [pendingTimelineRequests, setPendingTimelineRequests] = useState({});
 
   const frames = matchData?.info?.frames ?? [];
+  
+  // Save current page to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('lastVisitedPage', currentPage);
+  }, [currentPage]);
   
   useEffect(() => {
     const handleHashChange = () => {
@@ -238,11 +247,27 @@ function App() {
       setMatchError(null);
       setCurrentMatchId(matchInfo.matchId);
 
-      // Set match summary immediately (from DynamoDB data)
-      setMatchSummary(matchInfo.fullData || EMPTY_MATCH_SUMMARY);
+      // Fetch full match data if not already included
+      let fullMatchData = matchInfo.fullData;
+      if (!fullMatchData) {
+        console.log('Fetching full match data for:', matchInfo.matchId);
+        const matchResponse = await fetch(
+          `${API_BASE_URL}/api/player/match/${currentPuuid}/${matchInfo.matchId}`
+        );
+        
+        if (matchResponse.ok) {
+          const matchData = await matchResponse.json();
+          fullMatchData = matchData.data;
+        } else {
+          throw new Error('Failed to fetch full match data');
+        }
+      }
+
+      // Set match summary immediately
+      setMatchSummary(fullMatchData || EMPTY_MATCH_SUMMARY);
 
       // Find the participant ID for the current player
-      const participantIdForPlayer = matchInfo.fullData?.info?.participants?.find(
+      const participantIdForPlayer = fullMatchData?.info?.participants?.find(
         participant => participant.puuid === currentPuuid
       )?.participantId;
       if (participantIdForPlayer) {
@@ -337,6 +362,28 @@ function App() {
     setYearRecapError(null);
 
     try {
+      // Check cache first
+      const cacheKey = `yearRecap_${currentPuuid}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+      
+      // Cache valid for 10 minutes
+      const CACHE_DURATION = 10 * 60 * 1000;
+      const now = Date.now();
+      
+      if (cachedData && cacheTimestamp) {
+        const age = now - parseInt(cacheTimestamp);
+        if (age < CACHE_DURATION) {
+          console.log('Using cached year recap (age:', Math.round(age / 1000), 'seconds)');
+          const cached = JSON.parse(cachedData);
+          setYearRecapData(cached);
+          setYearRecapLoading(false);
+          return;
+        } else {
+          console.log('Year recap cache expired (age:', Math.round(age / 1000), 'seconds), fetching fresh data');
+        }
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/year-recap/heatmap`, {
         method: 'POST',
         headers: {
@@ -354,6 +401,11 @@ function App() {
 
       const data = await response.json();
       setYearRecapData(data);
+      
+      // Cache the data
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+      localStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+      console.log('Year recap cached for 10 minutes');
     } catch (error) {
       console.error('Error fetching year recap data:', error);
       setYearRecapError(error.message);
@@ -368,6 +420,29 @@ function App() {
     setPerformanceAnalyticsError(null);
 
     try {
+      // Check cache first
+      const filterKey = `${filters.champion}_${filters.role}_${filters.timeRange}`;
+      const cacheKey = `perfAnalytics_${currentPuuid}_${filterKey}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+      
+      // Cache valid for 10 minutes
+      const CACHE_DURATION = 10 * 60 * 1000;
+      const now = Date.now();
+      
+      if (cachedData && cacheTimestamp) {
+        const age = now - parseInt(cacheTimestamp);
+        if (age < CACHE_DURATION) {
+          console.log('Using cached performance analytics (age:', Math.round(age / 1000), 'seconds)');
+          const cached = JSON.parse(cachedData);
+          setPerformanceAnalyticsData(cached);
+          setPerformanceAnalyticsLoading(false);
+          return;
+        } else {
+          console.log('Performance analytics cache expired (age:', Math.round(age / 1000), 'seconds), fetching fresh data');
+        }
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/analytics/performance`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -385,6 +460,11 @@ function App() {
 
       const data = await response.json();
       setPerformanceAnalyticsData(data);
+      
+      // Cache the data
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+      localStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+      console.log('Performance analytics cached for 10 minutes');
     } catch (error) {
       console.error('Error fetching performance analytics:', error);
       setPerformanceAnalyticsError(error.message);
@@ -393,18 +473,36 @@ function App() {
     }
   };
 
-  // Fetch narrative data (only once, cached)
+  // Fetch narrative data (cached in localStorage)
   const fetchNarrativeData = async () => {
-    if (narrativeData) {
-      // Already cached, no need to fetch again
-      return;
-    }
-
     if (!currentPuuid) return;
 
     try {
       setNarrativeLoading(true);
       setNarrativeError(null);
+
+      // Check cache first
+      const cacheKey = `narrative_${currentPuuid}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+      
+      // Cache valid for 10 minutes
+      const CACHE_DURATION = 10 * 60 * 1000;
+      const now = Date.now();
+      
+      if (cachedData && cacheTimestamp) {
+        const age = now - parseInt(cacheTimestamp);
+        if (age < CACHE_DURATION) {
+          console.log('Using cached narrative (age:', Math.round(age / 1000), 'seconds)');
+          const cached = JSON.parse(cachedData);
+          setNarrativeData(cached);
+          setNarrativeLoading(false);
+          return;
+        } else {
+          console.log('Narrative cache expired (age:', Math.round(age / 1000), 'seconds), fetching fresh data');
+        }
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/analytics/year-narrative`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -419,6 +517,11 @@ function App() {
 
       if (data.success) {
         setNarrativeData(data);
+        
+        // Cache the data
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+        localStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+        console.log('Narrative cached for 10 minutes');
       } else {
         setNarrativeError(data.error || 'Failed to generate narrative');
       }
@@ -429,14 +532,25 @@ function App() {
     }
   };
 
-  // Fetch all analytics data upfront when app loads or player changes
+  // DON'T fetch analytics upfront - only when user navigates to those pages
+  // This makes the app load instantly for match analysis (the primary use case)
   useEffect(() => {
-    if (currentPuuid) {
-      // Fetch both Year Recap and Performance Analytics data in parallel
-      fetchYearRecapData();
+    if (currentPuuid && currentPage === 'year-recap') {
+      if (!yearRecapData) {
+        fetchYearRecapData();
+      }
+      if (!narrativeData && !narrativeLoading) {
+        fetchNarrativeData();
+      }
+    }
+  }, [currentPuuid, currentPage, yearRecapData, narrativeData, narrativeLoading]);
+
+  useEffect(() => {
+    if (currentPuuid && currentPage === 'performance-analytics' && !performanceAnalyticsData) {
+      // Only fetch if we don't already have the data
       fetchPerformanceAnalyticsData();
     }
-  }, [currentPuuid]);
+  }, [currentPuuid, currentPage, performanceAnalyticsData]);
 
   return (
     <DataCacheProvider>

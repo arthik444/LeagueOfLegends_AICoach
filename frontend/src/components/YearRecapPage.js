@@ -84,10 +84,10 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
   }, []);
 
   const categories = [
-    { id: 'deaths', label: 'Deaths', icon: '💀', color: '#EF4444' },
-    { id: 'kills', label: 'Kills', icon: '⚔️', color: '#10B981' },
-    { id: 'assists', label: 'Assists', icon: '🤝', color: '#3B82F6' },
-    { id: 'objectives', label: 'Objectives', icon: '🎯', color: '#F59E0B' }
+    { id: 'deaths', label: 'Deaths', icon: '✖', color: '#EF4444' },
+    { id: 'kills', label: 'Kills', icon: '⚔', color: '#10B981' },
+    { id: 'assists', label: 'Assists', icon: '＋', color: '#3B82F6' },
+    { id: 'objectives', label: 'Objectives', icon: '◎', color: '#F59E0B' }
   ];
 
   const currentCategory = categories.find(c => c.id === selectedCategory);
@@ -388,7 +388,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
     return (
       <div className="flex-1 bg-bg-dark flex items-center justify-center">
         <div className="text-center max-w-md">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <div className="text-red-500 text-6xl font-black mb-4">!</div>
           <div className="text-white text-xl font-semibold mb-2">Failed to Load Year Recap</div>
           <div className="text-text-secondary text-sm mb-4">{error}</div>
           <div className="text-text-secondary text-xs">
@@ -404,7 +404,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
     return (
       <div className="flex-1 bg-bg-dark flex items-center justify-center">
         <div className="text-center">
-          <div className="text-text-secondary text-6xl mb-4">📊</div>
+          <div className="text-text-secondary text-4xl font-semibold tracking-widest mb-4">DATA</div>
           <div className="text-white text-xl font-semibold">No Data Available</div>
           <div className="text-text-secondary text-sm mt-2">
             No timeline data found for this player
@@ -565,7 +565,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
             <div className="space-y-2">
               <div className="bg-gradient-to-r from-amber-900/30 to-transparent border border-amber-500/30 rounded-lg p-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">🏆</span>
+                  <span className="text-2xl">★</span>
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-white">Games Played</div>
                     <div className="text-xs text-text-secondary">{stats.total_matches || 0} matches this year</div>
@@ -574,7 +574,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
               </div>
               <div className="bg-gradient-to-r from-purple-900/30 to-transparent border border-purple-500/30 rounded-lg p-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">🎯</span>
+                  <span className="text-2xl">◎</span>
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-white">Objective Focus</div>
                     <div className="text-xs text-text-secondary">{stats.objectives_count || 0} objectives secured</div>
@@ -583,7 +583,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
               </div>
               <div className="bg-gradient-to-r from-cyan-900/30 to-transparent border border-cyan-500/30 rounded-lg p-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">⚔️</span>
+                  <span className="text-2xl">⚔</span>
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-white">Combat Veteran</div>
                     <div className="text-xs text-text-secondary">
