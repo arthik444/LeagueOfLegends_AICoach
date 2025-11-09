@@ -258,7 +258,7 @@ function PerformanceAnalyticsPage({ puuid, playerName, cachedData, loading: exte
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-20">
             <ObjectivePanel
               comparisonMode={comparisonMode}
               data={objectiveData}

@@ -178,10 +178,12 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId, onDropdownChange,
             borderRadius: '4px',
             color: '#fff',
             cursor: 'pointer',
-            fontSize: '16px'
+            fontSize: '14px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em'
           }}
         >
-          🔄
+          Refresh
         </button>
       </div>
 

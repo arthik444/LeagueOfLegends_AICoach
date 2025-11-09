@@ -40,6 +40,9 @@ function App() {
   const [yearRecapData, setYearRecapData] = useState(null);
   const [yearRecapLoading, setYearRecapLoading] = useState(false);
   const [yearRecapError, setYearRecapError] = useState(null);
+  const [narrativeData, setNarrativeData] = useState(null);
+  const [narrativeLoading, setNarrativeLoading] = useState(false);
+  const [narrativeError, setNarrativeError] = useState(null);
   const [performanceAnalyticsData, setPerformanceAnalyticsData] = useState(null);
   const [performanceAnalyticsLoading, setPerformanceAnalyticsLoading] = useState(false);
   const [performanceAnalyticsError, setPerformanceAnalyticsError] = useState(null);
@@ -212,6 +215,10 @@ function App() {
     // Reset year recap data so it fetches for the new player
     setYearRecapData(null);
 
+    // Reset narrative data
+    setNarrativeData(null);
+    setNarrativeError(null);
+
     // Reset performance analytics data so it fetches for the new player
     setPerformanceAnalyticsData(null);
 
@@ -355,6 +362,28 @@ function App() {
     setYearRecapError(null);
 
     try {
+      // Check cache first
+      const cacheKey = `yearRecap_${currentPuuid}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+      
+      // Cache valid for 10 minutes
+      const CACHE_DURATION = 10 * 60 * 1000;
+      const now = Date.now();
+      
+      if (cachedData && cacheTimestamp) {
+        const age = now - parseInt(cacheTimestamp);
+        if (age < CACHE_DURATION) {
+          console.log('Using cached year recap (age:', Math.round(age / 1000), 'seconds)');
+          const cached = JSON.parse(cachedData);
+          setYearRecapData(cached);
+          setYearRecapLoading(false);
+          return;
+        } else {
+          console.log('Year recap cache expired (age:', Math.round(age / 1000), 'seconds), fetching fresh data');
+        }
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/year-recap/heatmap`, {
         method: 'POST',
         headers: {
@@ -372,6 +401,11 @@ function App() {
 
       const data = await response.json();
       setYearRecapData(data);
+      
+      // Cache the data
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+      localStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+      console.log('Year recap cached for 10 minutes');
     } catch (error) {
       console.error('Error fetching year recap data:', error);
       setYearRecapError(error.message);
@@ -386,6 +420,29 @@ function App() {
     setPerformanceAnalyticsError(null);
 
     try {
+      // Check cache first
+      const filterKey = `${filters.champion}_${filters.role}_${filters.timeRange}`;
+      const cacheKey = `perfAnalytics_${currentPuuid}_${filterKey}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+      
+      // Cache valid for 10 minutes
+      const CACHE_DURATION = 10 * 60 * 1000;
+      const now = Date.now();
+      
+      if (cachedData && cacheTimestamp) {
+        const age = now - parseInt(cacheTimestamp);
+        if (age < CACHE_DURATION) {
+          console.log('Using cached performance analytics (age:', Math.round(age / 1000), 'seconds)');
+          const cached = JSON.parse(cachedData);
+          setPerformanceAnalyticsData(cached);
+          setPerformanceAnalyticsLoading(false);
+          return;
+        } else {
+          console.log('Performance analytics cache expired (age:', Math.round(age / 1000), 'seconds), fetching fresh data');
+        }
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/analytics/performance`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -403,6 +460,11 @@ function App() {
 
       const data = await response.json();
       setPerformanceAnalyticsData(data);
+      
+      // Cache the data
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+      localStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+      console.log('Performance analytics cached for 10 minutes');
     } catch (error) {
       console.error('Error fetching performance analytics:', error);
       setPerformanceAnalyticsError(error.message);
@@ -411,14 +473,77 @@ function App() {
     }
   };
 
+  // Fetch narrative data (cached in localStorage)
+  const fetchNarrativeData = async () => {
+    if (!currentPuuid) return;
+
+    try {
+      setNarrativeLoading(true);
+      setNarrativeError(null);
+
+      // Check cache first
+      const cacheKey = `narrative_${currentPuuid}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+      
+      // Cache valid for 10 minutes
+      const CACHE_DURATION = 10 * 60 * 1000;
+      const now = Date.now();
+      
+      if (cachedData && cacheTimestamp) {
+        const age = now - parseInt(cacheTimestamp);
+        if (age < CACHE_DURATION) {
+          console.log('Using cached narrative (age:', Math.round(age / 1000), 'seconds)');
+          const cached = JSON.parse(cachedData);
+          setNarrativeData(cached);
+          setNarrativeLoading(false);
+          return;
+        } else {
+          console.log('Narrative cache expired (age:', Math.round(age / 1000), 'seconds), fetching fresh data');
+        }
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/analytics/year-narrative`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          puuid: currentPuuid,
+          player_name: currentPlayerName || 'Player',
+          year: 2024
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setNarrativeData(data);
+        
+        // Cache the data
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+        localStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+        console.log('Narrative cached for 10 minutes');
+      } else {
+        setNarrativeError(data.error || 'Failed to generate narrative');
+      }
+    } catch (err) {
+      setNarrativeError(err.message);
+    } finally {
+      setNarrativeLoading(false);
+    }
+  };
+
   // DON'T fetch analytics upfront - only when user navigates to those pages
   // This makes the app load instantly for match analysis (the primary use case)
   useEffect(() => {
-    if (currentPuuid && currentPage === 'year-recap' && !yearRecapData) {
-      // Only fetch if we don't already have the data
-      fetchYearRecapData();
+    if (currentPuuid && currentPage === 'year-recap') {
+      if (!yearRecapData) {
+        fetchYearRecapData();
+      }
+      if (!narrativeData && !narrativeLoading) {
+        fetchNarrativeData();
+      }
     }
-  }, [currentPuuid, currentPage, yearRecapData]);
+  }, [currentPuuid, currentPage, yearRecapData, narrativeData, narrativeLoading]);
 
   useEffect(() => {
     if (currentPuuid && currentPage === 'performance-analytics' && !performanceAnalyticsData) {
@@ -471,12 +596,6 @@ function App() {
           <div className="text-sm text-gray-300">
             Current Player: <span className="text-primary-gold font-semibold">{currentPlayerName}</span>
           </div>
-          <button
-            onClick={() => setShowPlayerSearch(true)}
-            className="px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all"
-          >
-            Load Player
-          </button>
         </div>
       </div>
 
@@ -487,6 +606,10 @@ function App() {
           playerName={currentPlayerName}
           loading={yearRecapLoading}
           error={yearRecapError}
+          narrativeData={narrativeData}
+          narrativeLoading={narrativeLoading}
+          narrativeError={narrativeError}
+          onFetchNarrative={fetchNarrativeData}
         />
       ) : currentPage === 'performance-analytics' ? (
         <PerformanceAnalyticsPage
