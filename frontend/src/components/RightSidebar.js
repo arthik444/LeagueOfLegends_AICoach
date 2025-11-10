@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { getChampionImageUrl } from '../utils/championImages';
 import { MatchContextExtractor } from '../utils/matchContextExtractor';
 import { API_URL } from '../config';
+import html2canvas from 'html2canvas';
 
 const RightSidebar = ({ 
   currentFrame, 
@@ -23,6 +24,9 @@ const RightSidebar = ({
   onSetPlayerFilter
 }) => {
   const [isChatOpen, setIsChatOpen] = React.useState(false);
+  const [chatWidth, setChatWidth] = React.useState(320); // Default width
+  const [isResizing, setIsResizing] = React.useState(false);
+  const [sidebarBounds, setSidebarBounds] = React.useState({ top: 0, height: 0 });
   const [chatInput, setChatInput] = React.useState('');
   const [chatMessages, setChatMessages] = React.useState([
     {
@@ -35,15 +39,124 @@ const RightSidebar = ({
   ]);
   const [_isLoading, setIsLoading] = React.useState(false);
   const [conversationHistory, setConversationHistory] = React.useState([]);
+  const [displayedCards, setDisplayedCards] = React.useState([mainParticipantId]); // Main player always first
+  const [showAddCardMenu, setShowAddCardMenu] = React.useState(false);
   const chatScrollRef = React.useRef(null);
   const lastMessageRef = React.useRef(null);
   const chatInputRef = React.useRef(null);
+  const sidebarRef = React.useRef(null);
+
+  // Ensure main player card is always displayed when mainParticipantId changes
+  React.useEffect(() => {
+    setDisplayedCards(prev => {
+      // If main player is already first, no change needed
+      if (prev[0] === mainParticipantId) return prev;
+      // Otherwise, put main player first and remove any duplicates
+      return [mainParticipantId, ...prev.filter(id => id !== mainParticipantId)];
+    });
+  }, [mainParticipantId]);
 
   // Initialize context extractor
   const contextExtractor = React.useMemo(() => {
     if (!matchData?.info?.frames?.length) return null;
     return new MatchContextExtractor(matchData, matchSummary, mainParticipantId);
   }, [matchData, matchSummary, mainParticipantId]);
+
+  // Card management functions
+  const addPlayerCard = (participantId) => {
+    if (!displayedCards.includes(participantId)) {
+      setDisplayedCards([...displayedCards, participantId]);
+    }
+    setShowAddCardMenu(false);
+  };
+
+  const removePlayerCard = (participantId) => {
+    // Don't allow removing the main participant card - it must always be displayed
+    if (participantId === mainParticipantId) return;
+    
+    setDisplayedCards(displayedCards.filter(id => id !== participantId));
+  };
+
+  // Get available players for adding cards
+  const getAvailablePlayers = () => {
+    if (!participantFrames) return [];
+    return Object.keys(participantFrames)
+      .map(id => parseInt(id))
+      .filter(id => !displayedCards.includes(id))
+      .sort((a, b) => a - b);
+  };
+
+  // Share functionality with screenshot
+  const handleSharePlayer = async (participantId) => {
+    const cardElement = document.getElementById(`player-card-${participantId}`);
+    if (!cardElement) return;
+
+    try {
+      // Show loading state
+      const originalButton = document.querySelector(`#share-btn-${participantId}`);
+      if (originalButton) {
+        originalButton.textContent = '📸';
+        originalButton.disabled = true;
+      }
+
+      // Generate screenshot
+      const canvas = await html2canvas(cardElement, {
+        backgroundColor: '#1a1a1a',
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: true
+      });
+
+      // Convert to blob
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], `player-stats-${participantId}.png`, { type: 'image/png' });
+        
+        // Reset button
+        if (originalButton) {
+          originalButton.textContent = '📤';
+          originalButton.disabled = false;
+        }
+
+        try {
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            // Use native share with file
+            await navigator.share({
+              title: `Player Stats - RIFT Analyzer`,
+              text: `Check out these player stats from RIFT Analyzer!`,
+              files: [file]
+            });
+          } else {
+            // Fallback: download the image
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `player-stats-${participantId}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('Player stats screenshot saved!');
+          }
+        } catch (err) {
+          console.error('Error sharing screenshot:', err);
+          // Final fallback: just download
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `player-stats-${participantId}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      }, 'image/png');
+    } catch (err) {
+      console.error('Error generating screenshot:', err);
+      alert('Failed to generate screenshot. Please try again.');
+    }
+  };
 
   React.useEffect(() => {
     if (!isChatOpen) return;
@@ -53,10 +166,54 @@ const RightSidebar = ({
   }, [chatMessages, isChatOpen]);
 
   React.useEffect(() => {
-    if (isChatOpen && chatInputRef.current) {
-      chatInputRef.current.focus();
+    if (isChatOpen) {
+      // Reset sidebar scroll to top when chat opens
+      if (sidebarRef.current) {
+        sidebarRef.current.scrollTop = 0;
+        
+        // Get sidebar position for fixed positioning
+        const rect = sidebarRef.current.getBoundingClientRect();
+        setSidebarBounds({ top: rect.top, height: rect.height });
+      }
+      // Focus chat input
+      if (chatInputRef.current) {
+        chatInputRef.current.focus();
+      }
     }
   }, [isChatOpen]);
+
+  // Handle chat resize
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  React.useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing) return;
+      
+      // Calculate new width based on mouse position from right edge
+      const newWidth = window.innerWidth - e.clientX;
+      
+      // Constrain width between 320px (min) and 800px (max)
+      const constrainedWidth = Math.min(Math.max(newWidth, 320), 800);
+      setChatWidth(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   const hasUserMessages = React.useMemo(
     () => chatMessages.some(message => message.role === 'user'),
@@ -122,12 +279,22 @@ const RightSidebar = ({
     const kda = `${summary.kills ?? player.kills ?? 0}/${summary.deaths ?? player.deaths ?? 0}/${summary.assists ?? player.assists ?? 0}`;
     const teamName = participantId <= 5 ? 'Blue Team' : 'Red Team';
     const teamPillClasses = participantId <= 5 ? 'bg-team-blue/20 text-team-blue border-team-blue/40' : 'bg-enemy-red/20 text-enemy-red border-enemy-red/40';
+    
+    // Calculate additional valuable stats
+    const totalCS = (player.minionsKilled || 0) + (player.jungleMinionsKilled || 0);
+    const csPerMinute = currentFrameIndex > 0 ? (totalCS / (currentFrameIndex / 10)).toFixed(1) : '0.0';
+    const goldPerMinute = currentFrameIndex > 0 ? Math.round(player.totalGold / (currentFrameIndex / 10)) : 0;
+    const killParticipation = summary.kills || summary.assists ? 
+      Math.round(((summary.kills + summary.assists) / Math.max(1, summary.teamKills || 1)) * 100) : 0;
+    const visionScore = summary.wardsPlaced || 0;
+    const damageDealt = summary.totalDamageDealt || 0;
+    const damageTaken = summary.totalDamageTaken || 0;
 
     return (
-      <div className="bg-bg-dark rounded-xl p-4 mb-3 border border-gray-700">
-        <div className="flex items-start justify-between mb-3 gap-3">
-          <div className="flex items-start gap-3">
-            <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-primary-gold bg-gray-700 flex items-center justify-center shadow-lg flex-shrink-0">
+      <div id={`player-card-${participantId}`} className="bg-bg-dark rounded-xl p-4 mb-3 border border-gray-700">
+        <div className="flex items-start justify-between mb-3 gap-2">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-gold bg-gray-700 flex items-center justify-center shadow-lg flex-shrink-0">
               {championImageUrl ? (
                 <img
                   src={championImageUrl}
@@ -135,73 +302,104 @@ const RightSidebar = ({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <span className="text-white font-bold text-lg">P{participantId}</span>
+                <span className="text-white font-bold text-sm">P{participantId}</span>
               )}
             </div>
-            <div className="flex-1">
-              <div className="text-white font-semibold text-sm uppercase tracking-wide leading-tight">
+            <div className="flex-1 min-w-0">
+              <div className="text-white font-semibold text-sm uppercase tracking-wide leading-tight truncate">
                 {championName || `Player ${participantId}`}
               </div>
-              <div className="text-primary-gold text-sm font-bold leading-tight truncate">
+              <div className="text-primary-gold text-xs font-bold leading-tight truncate">
                 {summonerName}
               </div>
-              <div className="text-xs text-text-secondary flex flex-wrap items-center gap-2 mt-2">
-                <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide font-semibold ${teamPillClasses}`}>
+              <div className="text-xs text-text-secondary flex items-center gap-1.5 mt-1.5 flex-wrap">
+                <span className={`px-1.5 py-0.5 rounded-full border text-[9px] uppercase tracking-wide font-semibold whitespace-nowrap ${teamPillClasses}`}>
                   {teamName}
                 </span>
-                <span className="text-white/80">Level {player.level}</span>
-                <span className="text-white font-semibold">KDA {kda}</span>
+                <span className="text-white/80 whitespace-nowrap">Lv {player.level}</span>
+                <span className="text-white font-semibold whitespace-nowrap">{kda}</span>
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 flex-shrink-0">
+            <button
+              id={`share-btn-${participantId}`}
+              onClick={() => handleSharePlayer(participantId)}
+              className="w-7 h-7 bg-gray-700 rounded flex items-center justify-center hover:bg-gray-600 transition-colors text-text-secondary flex-shrink-0"
+              title="Share Player Stats"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+              </svg>
+            </button>
             <button
               onClick={() => onPinPlayer(participantId)}
-              className={`w-8 h-8 rounded flex items-center justify-center transition-colors ${
+              className={`w-7 h-7 rounded flex items-center justify-center transition-colors flex-shrink-0 ${
                 isPinned ? 'bg-primary-gold text-bg-dark' : 'bg-gray-700 text-text-secondary hover:bg-gray-600'
               }`}
               title={isPinned ? 'Unpin' : 'Pin'}
             >
-              📌
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
             </button>
-            {selectedPlayer === participantId && (
+            {displayedCards.length > 1 && participantId !== mainParticipantId && (
               <button
-                onClick={onClose}
-                className="w-8 h-8 bg-gray-700 rounded flex items-center justify-center hover:bg-gray-600 transition-colors text-text-secondary"
+                onClick={() => removePlayerCard(participantId)}
+                className="w-7 h-7 bg-red-600 rounded flex items-center justify-center hover:bg-red-700 transition-colors text-white flex-shrink-0"
+                title="Remove Card"
               >
-                ✕
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             )}
           </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Enhanced Stats Grid */}
         <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
           <div>
             <div className="text-xs text-text-secondary">Gold</div>
             <div className="text-primary-gold font-semibold">{player.totalGold?.toLocaleString() || 0}</div>
+            <div className="text-[10px] text-text-secondary">{goldPerMinute}/min</div>
           </div>
           <div>
             <div className="text-xs text-text-secondary">CS</div>
-            <div className="text-white font-semibold">
-              {(player.minionsKilled || 0) + (player.jungleMinionsKilled || 0)}
-            </div>
+            <div className="text-white font-semibold">{totalCS}</div>
+            <div className="text-[10px] text-text-secondary">{csPerMinute}/min</div>
           </div>
           <div>
-            <div className="text-xs text-text-secondary">Attack Damage</div>
+            <div className="text-xs text-text-secondary">Kill Participation</div>
+            <div className="text-white font-semibold">{killParticipation}%</div>
+          </div>
+          <div>
+            <div className="text-xs text-text-secondary">Vision Score</div>
+            <div className="text-white font-semibold">{visionScore}</div>
+          </div>
+          <div>
+            <div className="text-xs text-text-secondary">Damage Dealt</div>
+            <div className="text-white font-semibold">{damageDealt?.toLocaleString() || 0}</div>
+          </div>
+          <div>
+            <div className="text-xs text-text-secondary">Damage Taken</div>
+            <div className="text-white font-semibold">{damageTaken?.toLocaleString() || 0}</div>
+          </div>
+        </div>
+
+        {/* Combat Stats */}
+        <div className="grid grid-cols-3 gap-2 mb-4 text-xs">
+          <div>
+            <div className="text-xs text-text-secondary mb-1">AD</div>
             <div className="text-white font-semibold">{Math.round(stats.attackDamage || 0)}</div>
           </div>
           <div>
-            <div className="text-xs text-text-secondary">Ability Power</div>
+            <div className="text-xs text-text-secondary mb-1">AP</div>
             <div className="text-white font-semibold">{Math.round(stats.abilityPower || 0)}</div>
           </div>
           <div>
-            <div className="text-xs text-text-secondary">Armor</div>
-            <div className="text-white font-semibold">{Math.round(stats.armor || 0)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-text-secondary">Magic Resist</div>
-            <div className="text-white font-semibold">{Math.round(stats.magicResist || 0)}</div>
+            <div className="text-xs text-text-secondary mb-1">Speed</div>
+            <div className="text-white font-semibold">{Math.round(stats.movementSpeed || 0)}</div>
           </div>
         </div>
 
@@ -233,21 +431,7 @@ const RightSidebar = ({
           </div>
         </div>
 
-        {/* Combat Stats */}
-        <div className="pt-3 border-t border-gray-700">
-          <div className="text-xs text-text-secondary mb-2 uppercase tracking-wide">Combat Snapshot</div>
-          <div className="grid grid-cols-2 gap-2 text-xs text-white/90">
-            <div className="flex justify-between">
-              <span className="text-text-secondary">Attack Speed</span>
-              <span className="text-white">{stats.attackSpeed || 0}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-text-secondary">Move Speed</span>
-              <span className="text-white">{Math.round(stats.movementSpeed || 0)}</span>
-            </div>
-          </div>
         </div>
-      </div>
     );
   };
 
@@ -438,7 +622,7 @@ const RightSidebar = ({
   };
 
   return (
-    <div className="relative w-[320px] bg-surface h-full overflow-y-auto" style={{ overflowY: isChatOpen ? 'hidden' : 'auto' }}>
+    <div ref={sidebarRef} className="relative w-[320px] bg-surface h-full overflow-auto" style={{ overflow: isChatOpen ? 'hidden' : 'auto' }}>
       {/* Frame Summary */}
       <div className="p-4 border-b border-gray-700">
         <div className="text-center mb-4">
@@ -487,27 +671,86 @@ const RightSidebar = ({
       <div className="p-4">
         <h3 className="text-white font-semibold text-sm mb-3">Player Details</h3>
         
-        {/* Selected Player */}
-        {selectedPlayer && (
-          <PlayerStatsCard 
-            participantId={selectedPlayer} 
-            isPinned={pinnedPlayers.includes(selectedPlayer)}
-          />
+        {/* Add Player Button */}
+        {displayedCards.length < 10 && getAvailablePlayers().length > 0 && (
+          <div className="mb-4">
+            <button
+              onClick={() => setShowAddCardMenu(!showAddCardMenu)}
+              className="w-full bg-gray-800 hover:bg-gray-700 text-white rounded-lg p-3 flex items-center justify-center gap-2 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="text-sm font-medium">Add Player Card</span>
+            </button>
+            
+            {/* Add Player Menu */}
+            {showAddCardMenu && (
+              <div className="mt-2 bg-gray-800 rounded-lg border border-gray-700 max-h-64 overflow-y-auto">
+                {getAvailablePlayers().map(participantId => {
+                  const player = participantFrames[participantId];
+                  const summary = participantSummary[participantId] || {};
+                  const championName = summary.championName;
+                  const championImageUrl = championName ? getChampionImageUrl(championName) : null;
+                  const summonerName = summary.summonerName || `Player ${participantId}`;
+                  const teamName = participantId <= 5 ? 'Blue Team' : 'Red Team';
+                  const teamPillClasses = participantId <= 5 ? 'bg-team-blue/20 text-team-blue border-team-blue/40' : 'bg-enemy-red/20 text-enemy-red border-enemy-red/40';
+                  
+                  return (
+                    <button
+                      key={participantId}
+                      onClick={() => addPlayerCard(participantId)}
+                      className="w-full text-left p-3 hover:bg-gray-700 transition-colors border-b border-gray-700 last:border-b-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-600 bg-gray-700 flex-shrink-0">
+                          {championImageUrl ? (
+                            <img
+                              src={championImageUrl}
+                              alt={championName}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-white font-bold text-xs">P{participantId}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="text-white text-sm font-medium truncate">
+                              {championName || `Player ${participantId}`}
+                            </div>
+                            <span className={`px-1.5 py-0.5 rounded-full border text-[9px] uppercase tracking-wide font-medium ${teamPillClasses}`}>
+                              {teamName}
+                            </span>
+                          </div>
+                          <div className="text-gray-400 text-xs truncate">
+                            {summonerName}
+                          </div>
+                        </div>
+                        <div className="text-gray-500">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
 
-        {/* Pinned Players */}
-        {pinnedPlayers.filter(id => id !== selectedPlayer).map(participantId => (
+        {/* Display Player Cards */}
+        {displayedCards.map(participantId => (
           <PlayerStatsCard 
             key={participantId}
             participantId={participantId} 
-            isPinned={true}
+            isPinned={pinnedPlayers.includes(participantId)}
           />
         ))}
-
-        {/* Default: Show main player if nothing selected */}
-        {!selectedPlayer && pinnedPlayers.length === 0 && (
-          <PlayerStatsCard participantId={mainParticipantId} isPinned={false} />
-        )}
       </div>
 
       {/* Floating Chat Button */}
@@ -521,9 +764,25 @@ const RightSidebar = ({
       </button>
 
       {isChatOpen && (
-        <div className="absolute inset-0 z-30 bg-[#0d0d0d]/98 backdrop-blur-2xl flex flex-col">
+        <div 
+          className="fixed right-0 z-50 bg-[#0d0d0d] flex flex-col shadow-2xl"
+          style={{ 
+            width: `${chatWidth}px`,
+            top: `${sidebarBounds.top}px`,
+            height: `${sidebarBounds.height}px`
+          }}
+        >
+            {/* Resize Handle */}
+            <div
+              onMouseDown={handleMouseDown}
+              className={`absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-primary-gold/30 transition-colors group ${isResizing ? 'bg-primary-gold/50' : 'bg-transparent'}`}
+              style={{ zIndex: 60 }}
+            >
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-16 bg-primary-gold/40 rounded-r group-hover:bg-primary-gold/60 group-hover:h-24 transition-all" />
+            </div>
+
             {/* Top bar */}
-            <div className="px-4 py-3.5 border-b border-white/[0.08] flex items-center justify-between sticky top-0 bg-[#0d0d0d]/98 backdrop-blur-2xl">
+            <div className="px-4 py-3.5 border-b border-white/[0.08] flex items-center justify-between bg-[#0d0d0d]">
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-gold/20 to-primary-gold/5 border border-primary-gold/25 flex items-center justify-center">
                   <span className="text-xs font-bold text-primary-gold">RC</span>
@@ -709,6 +968,20 @@ const RightSidebar = ({
               </div>
             </form>
         </div>
+      )}
+
+      {/* Floating Chat Button - Only show when chat is closed */}
+      {!isChatOpen && (
+        <button
+          type="button"
+          onClick={() => setIsChatOpen(true)}
+          className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-20 flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-primary-gold text-bg-dark shadow-lg transition-transform hover:scale-105"
+          aria-label="Open Rift Copilot chat"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </button>
       )}
     </div>
   );

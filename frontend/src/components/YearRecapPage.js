@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
 import HabitsSection from './HabitsSection';
 import YearRecapCarousel from './YearRecapCarousel';
 import { API_URL } from '../config';
@@ -24,6 +25,9 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
 
   // Year Recap Chatbot state
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatWidth, setChatWidth] = useState(320); // Default width
+  const [isResizing, setIsResizing] = useState(false);
+  const [chatBounds, setChatBounds] = useState({ top: 0, height: 0 });
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
     {
@@ -40,6 +44,8 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
   const chatScrollRef = useRef(null);
   const lastMessageRef = useRef(null);
   const chatInputRef = useRef(null);
+  const containerRef = useRef(null);
+  const timelineRef = useRef(null);
 
   const coordinateBounds = { minX: 0, maxX: 15000, minY: 0, maxY: 15000 };
 
@@ -214,10 +220,57 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
   }, [chatMessages, isChatOpen]);
 
   useEffect(() => {
-    if (isChatOpen && chatInputRef.current) {
-      chatInputRef.current.focus();
+    if (isChatOpen) {
+      // Get container and timeline positions for fixed positioning
+      if (containerRef.current && timelineRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const timelineRect = timelineRef.current.getBoundingClientRect();
+        
+        // Start from timeline header top (covers timeline but not main tabs)
+        // Extend to bottom of sidebar container
+        const chatTop = timelineRect.top;
+        const chatHeight = containerRect.bottom - timelineRect.top;
+        setChatBounds({ top: chatTop, height: chatHeight });
+      }
+      // Focus chat input
+      if (chatInputRef.current) {
+        chatInputRef.current.focus();
+      }
     }
   }, [isChatOpen]);
+
+  // Handle chat resize
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing) return;
+      
+      // Calculate new width based on mouse position from right edge
+      const newWidth = window.innerWidth - e.clientX;
+      
+      // Constrain width between 320px (min) and 800px (max)
+      const constrainedWidth = Math.min(Math.max(newWidth, 320), 800);
+      setChatWidth(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   const hasUserMessages = useMemo(
     () => chatMessages.some(message => message.role === 'user'),
@@ -226,9 +279,9 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
 
   const suggestedYearQuestions = useMemo(
     () => ([
-      { id: 'champion-performance', label: 'How did I perform on Yasuo?', eta: '(uses tool)' },
-      { id: 'role-analysis', label: 'Show me my Mid lane performance', eta: '(uses tool)' },
-      { id: 'compare-champions', label: 'Compare my top 3 champions', eta: '(uses tools)' },
+      { id: 'champion-performance', label: 'How did I performed using Caitlyn?', eta: '' },
+      { id: 'strengths-weaknesses', label: 'What are my strengths and weaknesses?', eta: '' },
+      { id: 'game-habits', label: 'What are my game habits?', eta: '' },
       { id: 'vision-control', label: 'How is my vision control?', eta: '(fetches data)' }
     ]),
     []
@@ -440,7 +493,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
     <div className="flex-1 bg-bg-dark flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Timeline Chart */}
-        <div className="bg-gray-900 border-b border-gray-700 px-6 py-4">
+        <div ref={timelineRef} className="bg-gray-900 border-b border-gray-700 px-6 py-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide">
               Timeline - {timelineMode === 'total' ? 'Total Count' : 'Average per Game'}
@@ -815,7 +868,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
         </div>
 
         {/* Right Sidebar - Event Categories with Chat Overlay */}
-        <div className="w-80 bg-gray-900 border-l border-gray-700 overflow-y-auto relative">
+        <div ref={containerRef} className="w-80 bg-gray-900 border-l border-gray-700 overflow-y-auto relative">
           <div className="p-4 space-y-4">
             {/* Event Categories */}
             <div>
@@ -860,9 +913,25 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
 
           {/* Chat Overlay - Match Analysis Style */}
           {isChatOpen && (
-            <div className="absolute inset-0 z-30 bg-[#0d0d0d]/98 backdrop-blur-2xl flex flex-col">
+            <div 
+              className="fixed right-0 z-50 bg-[#0d0d0d] flex flex-col shadow-2xl"
+              style={{ 
+                width: `${chatWidth}px`,
+                top: `${chatBounds.top}px`,
+                height: `${chatBounds.height}px`
+              }}
+            >
+              {/* Resize Handle */}
+              <div
+                onMouseDown={handleMouseDown}
+                className={`absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-primary-gold/30 transition-colors group ${isResizing ? 'bg-primary-gold/50' : 'bg-transparent'}`}
+                style={{ zIndex: 60 }}
+              >
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-16 bg-primary-gold/40 rounded-r group-hover:bg-primary-gold/60 group-hover:h-24 transition-all" />
+              </div>
+
               {/* Top bar */}
-              <div className="px-4 py-3.5 border-b border-white/[0.08] flex items-center justify-between sticky top-0 bg-[#0d0d0d]/98 backdrop-blur-2xl">
+              <div className="px-4 py-3.5 border-b border-white/[0.08] flex items-center justify-between bg-[#0d0d0d]">
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-gold/20 to-primary-gold/5 border border-primary-gold/25 flex items-center justify-center">
                     <span className="text-xs font-bold text-primary-gold">YR</span>
@@ -958,18 +1027,10 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
                                       </div>
                                     )}
                                     {/* Message content */}
-                                    <div className="space-y-1.5">
-                                      {String(message.content)
-                                        .split('\n')
-                                        .map((line, lineIndex) => (
-                                          line.trim().length > 0 ? (
-                                            <p key={lineIndex} className="text-[13px] leading-relaxed">
-                                              {line}
-                                            </p>
-                                          ) : (
-                                            <div key={lineIndex} className="h-2" />
-                                          )
-                                        ))}
+                                    <div className="text-[13px] leading-relaxed prose prose-invert prose-sm max-w-none">
+                                      <ReactMarkdown>
+                                        {message.content}
+                                      </ReactMarkdown>
                                     </div>
                                   </div>
                                 )}
