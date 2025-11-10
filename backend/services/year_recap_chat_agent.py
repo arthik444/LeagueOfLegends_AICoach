@@ -239,6 +239,12 @@ Important guidelines:
 - Keep responses concise (2-3 sentences)
 - Focus on year-long trends and patterns
 - Be encouraging and celebratory
+- **ALWAYS format your responses using Markdown** for better readability:
+  * Use **bold** for emphasis on key stats or achievements
+  * Use bullet points (-) for lists
+  * Use headings (##) for sections when appropriate
+  * Use `code formatting` for champion names, items, or specific game terms
+  * Use line breaks to separate ideas
 
 Available context about the player's year:
 """ + context

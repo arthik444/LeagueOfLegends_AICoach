@@ -557,45 +557,51 @@ function App() {
     <DataCacheProvider>
     <div className="h-screen w-screen bg-bg-dark flex flex-col overflow-hidden">
       {/* Navigation Bar */}
-      <div className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="text-xl font-bold text-primary-gold">RIFT Analyzer</div>
-          <div className="flex gap-2">
+      <div className="bg-gray-900 border-b border-gray-700 px-4 sm:px-6 py-3 flex items-center justify-between relative z-50">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="text-lg sm:text-xl font-bold text-primary-gold">RIFT Analyzer</div>
+          <div className="flex gap-1 sm:gap-2 flex-wrap">
             <button
               onClick={() => setCurrentPage('performance-analytics')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`px-2 sm:px-4 py-2 rounded-lg font-medium transition-all text-xs sm:text-sm ${
                 currentPage === 'performance-analytics'
                   ? 'bg-primary-gold text-bg-dark'
                   : 'bg-gray-800 text-white hover:bg-gray-700'
               }`}
             >
-              Performance Analytics
+              <span className="hidden sm:inline">Performance Analytics</span>
+              <span className="sm:hidden">Analytics</span>
             </button>
             <button
               onClick={() => setCurrentPage('match')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`px-2 sm:px-4 py-2 rounded-lg font-medium transition-all text-xs sm:text-sm ${
                 currentPage === 'match'
                   ? 'bg-primary-gold text-bg-dark'
                   : 'bg-gray-800 text-white hover:bg-gray-700'
               }`}
             >
-              Match Analysis
+              <span className="hidden sm:inline">Match Analysis</span>
+              <span className="sm:hidden">Match</span>
             </button>
             <button
               onClick={() => setCurrentPage('year-recap')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`px-2 sm:px-4 py-2 rounded-lg font-medium transition-all text-xs sm:text-sm ${
                 currentPage === 'year-recap'
                   ? 'bg-primary-gold text-bg-dark'
                   : 'bg-gray-800 text-white hover:bg-gray-700'
               }`}
             >
-              Year Recap
+              <span className="hidden sm:inline">Year Recap</span>
+              <span className="sm:hidden">Recap</span>
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-300">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="text-xs sm:text-sm text-gray-300 hidden xs:block">
             Current Player: <span className="text-primary-gold font-semibold">{currentPlayerName}</span>
+          </div>
+          <div className="text-xs sm:text-sm text-gray-300 xs:hidden">
+            <span className="text-primary-gold font-semibold">{currentPlayerName}</span>
           </div>
         </div>
       </div>
