@@ -1,6 +1,6 @@
-# Rift Rewind
+# Rift Analyzer
 
-Rift Rewind is an AI-powered League of Legends coaching companion that helps players reflect on a full year of matches, understand persistent habits, and plan their next climb. Inspired by the Rift Rewind challenge, the project combines Riot Games match data with Amazon Bedrock to deliver data-rich retrospectives that feel personal and actionable.
+Rift Analyzer is an AI-powered League of Legends coaching companion that helps players reflect on a full year of matches, understand persistent habits, and plan their next climb. Inspired by the Rift Analyzer challenge, the project combines Riot Games match data with Amazon Bedrock to deliver data-rich retrospectives that feel personal and actionable.
 
 ## Project Highlights
 
@@ -71,7 +71,7 @@ The backend provides secure endpoints for player lookup, match ingestion, analyt
 - **Amazon Bedrock (Claude 3 Sonnet):** Generates personalized narratives, contextual coaching feedback, and highlight commentary.
 - **Boto3 Client Utilities:** Handle authentication, prompt construction, and retry logic for Bedrock calls.
 - **Identity and Access Management:** Granular IAM policies restrict Bedrock access to the required models and operations.
-- **Deployment-Ready Extensions:** The architecture supports running the API on AWS Lambda behind API Gateway, persisting derived analytics in DynamoDB, and storing shareable assets in Amazon S3. Resources can be tagged with `key=rift-rewind-hackathon`, `value=2025` for traceability.
+- **Deployment-Ready Extensions:** The architecture supports running the API on AWS Lambda behind API Gateway, persisting derived analytics in DynamoDB, and storing shareable assets in Amazon S3. Resources can be tagged with `key=rift-Analyzer-hackathon`, `value=2025` for traceability.
 
 ## Getting Started
 
@@ -157,4 +157,4 @@ This project is released under the MIT License. See the accompanying `LICENSE` f
 
 - AWS for Amazon Bedrock and supporting tooling.
 - Riot Games for providing League of Legends developer APIs and datasets.
-- The Rift Rewind community for inspiration and feedback throughout development.
+- The Rift Analyzer community for inspiration and feedback throughout development.
